@@ -59,7 +59,7 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
     }
 
     bool found = false;
-    for(size_t i = 0; i < MAX_USERS; i++){
+    for(size_t i = 0; i < current_users; i++){
         if(!sc->user_states[i].valid){
            continue;
         }
@@ -72,6 +72,7 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
             continue;
         }
 
+        uprintf("CDEV: Chekcing equality\n");
         void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
         if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
             CDEV_UNLOCK(sc);
@@ -277,6 +278,8 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     sc->user_states[current_users].obj = obj;
     sc->user_states[current_users].pid = curthread->td_proc->p_pid;
     sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
+
+    uprintf("CDEV: sealing key %#p\n", sc->user_states[current_users].sealing_key);
     sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
 
     // seal user cap
@@ -340,6 +343,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
         }
     }
     else{
+        uprintf("CDEV: Cap token loop\n");
         if(check_cap_token_loop(sc, header_req->cap_req.sealed_cap)){
             return EPERM;
         }
