@@ -309,7 +309,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     }
 
     tx_cdev_req_t* user_req_tx = NULL;
-    cdev_disc_req_t* user_req_disc = NULL:
+    cdev_disc_req_t* user_req_disc = NULL;
 
     uprintf("CDEV: Switch statement\n");
     switch(cmd){
@@ -347,18 +347,18 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
             uprintf("CDEV: check length\n");
             if(user_req_tx->length > ((PAGE_SIZE / 2) - 2)){
-                device_printf(sc->dev, "User Wants To Send Too Many Bytes\n");
+                uprintf("CDEV: User Wants To Send Too Many Bytes\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(user_req_tx->receiver_id >= MAX_USERS || user_req_tx->receiver_id < 0){
-                device_printf(sc->dev, "User Wants To Send non existent receiver\n");
+                uprintf("CDEV: User Wants To Send non existent receiver\n");
                 return EINVAL;
             }
 
             if(!sc->user_states[user_req_tx->receiver_id].valid){
-                device_printf(sc->dev, "User Wants To Send non existent receiver\n");
+                uprintf("CDEV: User Wants To Send non existent receiver\n");
                 return EINVAL;
             }
 
@@ -397,14 +397,14 @@ destroy_our_cdev(cdev_softc_t* sc){
     if(sc == NULL){
         return ENXIO;
     }
-    E1000_LOCK(sc);
+    CDEV_LOCK(sc);
     if(sc->mapped){
-        E1000_UNLOCK(sc);
+        CDEV_UNLOCK(sc);
         return EBUSY;
     }
 
     sc->dying = true;
-    E1000_UNLOCK(sc);
+    CDEV_UNLOCK(sc);
 
     destroy_dev(sc->cdev);
     for(size_t i = 0; i < MAX_USERS; i++){
