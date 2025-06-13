@@ -311,17 +311,19 @@ discover_users(cdev_softc_t* sc, cdev_disc_req_t* req){
 
 static int
 transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
-    char* transmit_buffer = sc->user_states[ req->my_id ]->page->transmit_buffer;
-    char* receive_buffer = sc->user_states[ req->receiver_id ]->page->receive_buffer;
-    uint32_t rx_offest = sc->user_states[ req->receiver_id ]->page->rx_offest;
-    if(req->length < ((PAGE_SIZE / 2) - 2)-rx_offest) {
-        memcopy(receive_buffer[rx_offest], transmit_buffer,  req->length);
+    char* transmit_buffer = sc->user_states[ req->my_id ].page->transmit_buffer;
+    char* receive_buffer = sc->user_states[ req->receiver_id ].page->receive_buffer;
+    uint32_t rx_offest = sc->user_states[ req->receiver_id ].page->rx_offest;
+
+    uint32_t check_val = ((PAGE_SIZE / 2) - 2)-rx_offest;
+    if(req->length < check_val) {
+        memcpy(&receive_buffer[rx_offest], transmit_buffer, req->length);
         rx_offest += req->length;
     } else {
-        memcopy(receive_buffer[rx_offest], transmit_buffer,  ((PAGE_SIZE / 2) - 2)-rx_offest);
-        rx_offest += ((PAGE_SIZE / 2) - 2)-rx_offest;
+        memcpy(&receive_buffer[rx_offest], transmit_buffer, check_val);
+        rx_offest += check_val;
     }
-    sc->user_states[ req->receiver_id ]->page->rx_offest = rx_offest;
+    sc->user_states[ req->receiver_id ].page->rx_offest = rx_offest;
     return 0;
 }
 
