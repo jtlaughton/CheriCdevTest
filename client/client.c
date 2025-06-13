@@ -97,6 +97,7 @@ int main(void) {
   sleep(1);
 
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
+  printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
   printf("ioctling CDEV_TX\n");
   printf("Cap before ioctl: %#p\n", cap_request.user_cap);
   tx_cdev_req_t tx_cdev_req;
@@ -114,6 +115,7 @@ int main(void) {
 
   sleep(1);
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
+  printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
 
 
 
