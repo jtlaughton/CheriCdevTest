@@ -334,7 +334,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     }
 
     uprintf("CDEV: Cap Token Check\n");
-    if(header_req->my_id < 0 || header_req->my_id >= MAX_USERS){
+    if(header_req->my_id >= 0 && header_req->my_id < MAX_USERS){
         if(check_cap_token(sc, header_req->my_id, header_req->cap_req.sealed_cap)){
             return EPERM;
         }
