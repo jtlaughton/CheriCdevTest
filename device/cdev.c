@@ -1,5 +1,6 @@
 #include "cdev.h"
 
+#include <stddef.h>
 #include <sys/param.h>
 
 #define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_DEF)
@@ -51,6 +52,36 @@ static int check_cap_token(cdev_softc_t* sc, uint32_t id, void* __capability cap
 
     CDEV_UNLOCK(sc);
     return 0;
+}
+
+static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
+    if(check_attach_and_lock(sc)){
+        return EINVAL;
+    }
+
+    bool found = false;
+    for(size_t i = 0; i < MAX_USERS; i++){
+        if(!sc->user_states[i].valid){
+           continue;
+        }
+
+        if(sc->user_states[i].cap_state.sealed_cap == NULL){
+            continue;
+        }
+
+        if(cap_token == NULL){
+            continue;
+        }
+
+        void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
+        if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
+            CDEV_UNLOCK(sc);
+            return EPERM;
+        }
+    }
+
+    CDEV_UNLOCK(sc);
+    return found ? 0 : EPERM;
 }
 
 static int
@@ -304,9 +335,17 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     }
 
     uprintf("CDEV: Cap Token Check\n");
-    if(check_cap_token(sc, header_req->my_id, header_req->cap_req.sealed_cap)){
-        return EPERM;
+    if(header_req->my_id < 0 || header_req->my_id >= MAX_USERS){
+        if(check_cap_token(sc, header_req->my_id, header_req->cap_req.sealed_cap)){
+            return EPERM;
+        }
     }
+    else{
+        if(check_cap_token_loop(sc, header_req->cap_req.sealed_cap)){
+            return EPERM;
+        }
+    }
+    
 
     tx_cdev_req_t* user_req_tx = NULL;
     cdev_disc_req_t* user_req_disc = NULL;
