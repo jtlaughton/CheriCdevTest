@@ -63,9 +63,9 @@ typedef struct __attribute__((packed)) cdev_buffers {
     uint32_t rx_offest;
 } cdev_buffers_t;
 
-#define CDEV_TX    _IOWR('E', 1, tx_cdev_req_t);
-#define CDEV_DISC  _IOWR('E', 2, cdev_disc_req_t);
-#define CDEV_GBY   _IOWR('E', 2, cdev_header_req_t);
+#define CDEV_TX    _IOWR('E', 1, tx_cdev_req_t)
+#define CDEV_DISC  _IOWR('E', 2, cdev_disc_req_t)
+#define CDEV_GBY   _IOWR('E', 2, cdev_header_req_t)
 
 static d_open_t		cdev_open;
 static d_close_t	cdev_close;
