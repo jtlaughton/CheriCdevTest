@@ -320,7 +320,6 @@ transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
     //uint32_t rx_offest = 0;
 
     uprintf("page_cap (mine) (transmit): %#p\n", sc->user_states[req->my_id].page);
-
     uprintf("transmit_cap (transmit): %#p\n", transmit_buffer);
     uprintf("receive_cap (transmit): %#p\n", receive_buffer);
 
@@ -399,7 +398,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             // function to return cdev discovery
             discover_users(sc, user_req_disc);
 
-            uprintf("page_cap (mine) (disc): %#p\n", sc->user_states[user_req_disc->my_id].page);
+            uprintf("page_cap (mine) (disc): %#p\n", sc->user_states[user_req_disc->your_id].page);
             
             CDEV_UNLOCK(sc);
             break;
