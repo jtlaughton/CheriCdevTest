@@ -317,24 +317,18 @@ static int
 transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
     char* transmit_buffer = sc->user_states[ req->my_id ].page->transmit_buffer;
     char* receive_buffer = sc->user_states[ req->receiver_id ].page->receive_buffer;
-    //uint32_t rx_offest = 0;
+    uint32_t rx_offest = sc->user_states[req->receiver_id].page->rx_offest;
 
-    uprintf("page_cap (mine) (transmit): %#p\n", sc->user_states[req->my_id].page);
-    uprintf("transmit_cap (transmit): %#p\n", transmit_buffer);
-    uprintf("receive_cap (transmit): %#p\n", receive_buffer);
-
-    memcpy(receive_buffer, transmit_buffer, 0);
-    sc->user_states[req->receiver_id].page->rx_offest = 0;
-
-    // uint32_t check_val = ((PAGE_SIZE / 2) - 2)-rx_offest;
-    // if(req->length < check_val) {
-    //     memcpy(cheri_incoffset(receive_buffer, rx_offest), transmit_buffer, req->length);
-    //     rx_offest += req->length;
-    // } else {
-    //     memcpy(&receive_buffer[rx_offest], transmit_buffer, check_val);
-    //     rx_offest += check_val;
-    // }
-    // sc->user_states[ req->receiver_id ].page->rx_offest = rx_offest;
+    uint32_t check_val = ((PAGE_SIZE / 2) - 2)-rx_offest;
+    if(req->length < check_val) {
+        memcpy(cheri_incoffset(receive_buffer, rx_offest), transmit_buffer, req->length);
+        rx_offest += req->length;
+    } else {
+        memcpy(&receive_buffer[rx_offest], transmit_buffer, check_val);
+        rx_offest += check_val;
+    }
+    
+    sc->user_states[ req->receiver_id ].page->rx_offest = rx_offest;
     return 0;
 }
 
@@ -397,8 +391,6 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
             // function to return cdev discovery
             discover_users(sc, user_req_disc);
-
-            uprintf("page_cap (mine) (disc): %#p\n", sc->user_states[user_req_disc->your_id].page);
             
             CDEV_UNLOCK(sc);
             break;
@@ -411,27 +403,22 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             user_req_tx = (tx_cdev_req_t *)addr;
 
             if(user_req_tx->length > ((PAGE_SIZE / 2) - 2)){
-                uprintf("CDEV: length check failed\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(user_req_tx->receiver_id >= MAX_USERS || user_req_tx->receiver_id < 0){
-                uprintf("CDEV: receiver check failed\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(!sc->user_states[user_req_tx->receiver_id].valid){
-                uprintf("CDEV: receiver valid check failed\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             // call transmmit function
-            uprintf("page_cap (mine) (before transmit): %#p\n", sc->user_states[user_req_disc->my_id].page);
             transmit_to_user(sc, user_req_tx);
-            uprintf("page_cap (mine) (after transmit): %#p\n", sc->user_states[user_req_disc->my_id].page);
 
             CDEV_UNLOCK(sc);
             break;
