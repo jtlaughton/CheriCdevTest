@@ -69,7 +69,7 @@ int main(void) {
   printf("ioctling discover\n");
   printf("Cap before ioctl: %#p\n", cap_request.user_cap);
 
-  while true {
+  while (true) {
     cdev_disc_req_t cdev_disc_req;
     cdev_disc_req.cap_req = cap_request;
 
@@ -133,6 +133,8 @@ int main(void) {
   // No way to forge request, but can call goodbye with invalid my_id of another process
 
   // ADD an use after free call that should fail
+
+  // 
 
   // Try to read the rec buffer (should crash)
 
