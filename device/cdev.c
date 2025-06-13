@@ -76,7 +76,6 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
         //uprintf("CDEV: Chekcing equality\n");
         void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
         if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
-            CDEV_UNLOCK(sc);
             continue;
         }
 
@@ -376,6 +375,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             }
 
             if(header_req->my_id >= MAX_USERS || header_req->my_id < 0){
+                CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
