@@ -22,7 +22,6 @@ static int modmap_fd;
 
 int main(void) {
     uint32_t my_id = -1;
-
   printf("Opening cdev_cheri fd.\n");
   // 1) Open the character device
   cdev_cheri_fd = open(DEVNODE, O_RDWR);
@@ -70,8 +69,9 @@ int main(void) {
   printf("ioctling discover\n");
   printf("Cap before ioctl: %#p\n", cap_request.sealed_cap);
 
+
+  cdev_disc_req_t cdev_disc_req;
   while (true) {
-    cdev_disc_req_t cdev_disc_req;
     cdev_disc_req.cap_req = cap_request;
     cdev_disc_req.my_id = my_id;
 
@@ -82,7 +82,7 @@ int main(void) {
     }
     my_id = cdev_disc_req.your_id;
     printf("CDEV_DISC informed identity: %d\n", my_id);
-    if (cdev_disc_req.found_receivers[0] != -1) {
+    if (cdev_disc_req.found_receivers[1] != -1) {
         printf("CDEV_DISC found peers\n");
         break;
     } else {
@@ -105,7 +105,7 @@ int main(void) {
   tx_cdev_req.my_id = my_id;
   strncpy(cdev_buffer->transmit_buffer, "Hello World!", 13);
   tx_cdev_req.length = 13;
-  tx_cdev_req.receiver_id = my_id;
+  tx_cdev_req.receiver_id = cdev_disc_req.found_receivers[1];
   if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req) < 0) {
         perror("ioctl CDEV_TX");
         close(cdev_cheri_fd);
