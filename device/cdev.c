@@ -319,8 +319,11 @@ transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
     char* receive_buffer = sc->user_states[ req->receiver_id ].page->receive_buffer;
     //uint32_t rx_offest = 0;
 
-    memcpy(receive_buffer, transmit_buffer, req->length);
-    sc->user_states[req->receiver_id].page->rx_offest = req->length;
+    uprintf("transmit_cap: %#p\n", transmit_buffer);
+    uprintf("receive_cap: %#p\n", receive_buffer);
+
+    memcpy(receive_buffer, transmit_buffer, 0);
+    sc->user_states[req->receiver_id].page->rx_offest = 0;
 
     // uint32_t check_val = ((PAGE_SIZE / 2) - 2)-rx_offest;
     // if(req->length < check_val) {
