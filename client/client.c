@@ -68,7 +68,7 @@ int main(void) {
   printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
 
   printf("ioctling discover\n");
-  printf("Cap before ioctl: %#p\n", cap_request.user_cap);
+  printf("Cap before ioctl: %#p\n", cap_request.sealed_cap);
 
   while (true) {
     cdev_disc_req_t cdev_disc_req;
@@ -90,7 +90,7 @@ int main(void) {
     sleep(1);
   }
 
-  printf("Cap after ioctl: %#p\n", cap_request.user_cap);
+  printf("Cap after ioctl: %#p\n", cap_request.sealed_cap);
   printf("Ioctl CDEV_DISC sucessful\n");
 
   sleep(1);
@@ -98,7 +98,7 @@ int main(void) {
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
   printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
   printf("ioctling CDEV_TX\n");
-  printf("Cap before ioctl: %#p\n", cap_request.user_cap);
+  printf("Cap before ioctl: %#p\n", cap_request.sealed_cap);
   tx_cdev_req_t tx_cdev_req;
   tx_cdev_req.cap_req = cap_request;
   strncpy(cdev_buffer->transmit_buffer, "Hello World!", 13);
@@ -109,7 +109,7 @@ int main(void) {
         close(cdev_cheri_fd);
             return 1;
   }
-  printf("Cap after ioctl: %#p\n", cap_request.user_cap);
+  printf("Cap after ioctl: %#p\n", cap_request.sealed_cap);
   printf("Ioctl CDEV_TX sucessful\n");
 
   sleep(1);
@@ -119,7 +119,7 @@ int main(void) {
 
 
   printf("ioctling CDEV_GBY\n");
-  printf("Cap before ioctl: %#p\n", cap_request.user_cap);
+  printf("Cap before ioctl: %#p\n", cap_request.sealed_cap);
   cdev_header_req_t cdev_header_req;
   cdev_header_req.cap_req = cap_request;
   cdev_header_req.my_id = my_id;
@@ -128,7 +128,7 @@ int main(void) {
         close(cdev_cheri_fd);
             return 1;
   }
-  printf("Cap after ioctl: %#p\n", cap_request.user_cap);
+  printf("Cap after ioctl: %#p\n", cap_request.sealed_cap);
   printf("Ioctl CDEV_GBY sucessful\n");
 
   // No way to forge request, but can call goodbye with invalid my_id of another process
