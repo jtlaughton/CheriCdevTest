@@ -317,10 +317,10 @@ transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
 
     uint32_t check_val = ((PAGE_SIZE / 2) - 2)-rx_offest;
     if(req->length < check_val) {
-        memcopy(receive_buffer[rx_offest], transmit_buffer,  req->length);
+        memcpy(receive_buffer[rx_offest], transmit_buffer,  req->length);
         rx_offest += req->length;
     } else {
-        memcopy(receive_buffer[rx_offest], transmit_buffer,  check_val);
+        memcpy(receive_buffer[rx_offest], transmit_buffer,  check_val);
         rx_offest += check_val;
     }
     sc->user_states[ req->receiver_id ].page->rx_offest = rx_offest;
