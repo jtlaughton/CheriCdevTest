@@ -1,6 +1,5 @@
 #include "cdev.h"
 
-#include <stddef.h>
 #include <sys/param.h>
 
 #define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_SPIN)
