@@ -302,8 +302,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
                 return EINVAL;
             }
 
-            // call cdev transmit function
-            cdev_write(sc, user_req_tx);
+            // call transmmit function
 
             CDEV_UNLOCK(sc);
             break;
