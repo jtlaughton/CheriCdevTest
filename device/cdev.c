@@ -1,7 +1,10 @@
 #include "cdev.h"
 
+#include <cerrno>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+#include <stddef.h>
+#include <sys/param.h>
 
 #define REFCLOCK 24000000
 
@@ -18,8 +21,12 @@ static int cdev_acpi_detach(device_t dev);
 // ACPI-compatible hardware IDs for the PL011 CDEV
 static char *cdev_ids[] = { "ARMH0011", NULL };
 
-static int check_cap_token(cdev_softc_t* sc, void* __capability cap_token){
-    if(sc->cap_state.sealed_cap == NULL){
+static int check_cap_token(cdev_softc_t* sc, uint32_t id, void* __capability cap_token){
+    if(!sc->user_states[id].valid){
+        return EINVAL;
+    }
+
+    if(sc->user_states[id].cap_state.sealed_cap == NULL){
         return EINVAL;
     }
 
@@ -27,8 +34,8 @@ static int check_cap_token(cdev_softc_t* sc, void* __capability cap_token){
         return EINVAL;
     }
 
-    void* __capability unsealed_token = cheri_unseal(cap_token, sc->sealing_key);
-    if(!cheri_ptr_equal_exact(unsealed_token, sc->cap_state.original_cap)){
+    void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[id].sealing_key);
+    if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[id].cap_state.original_cap)){
         return EPERM;
     }
 
@@ -250,6 +257,26 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 	return (0);
 }
 
+static void
+discover_users(cdev_softc_t* sc, cdev_disc_req_t* req){
+    size_t current_pos = 0;
+    for(size_t i = 0; i < MAX_USERS; i++){
+        if(sc->user_states[i].valid){
+            req->found_receivers[current_pos] = sc->user_states[i].user_id;
+            current_pos++;
+        }
+    }
+
+    for(size_t i = current_pos; i < MAX_USERS; i++){
+        req->found_receivers[current_pos] = -1;
+    }
+}
+
+static int
+transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
+    return 0;
+}
+
 static int
 cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     struct thread *td){
@@ -270,12 +297,12 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     }
 
     uprintf("CDEV: Cap Token Check\n");
-    if(check_cap_token(sc, header_req->cap_req.sealed_cap)){
+    if(check_cap_token(sc, header_req->my_id, header_req->cap_req.sealed_cap)){
         return EPERM;
     }
 
     tx_cdev_req_t* user_req_tx = NULL;
-    cdev_disc_req_t user_req_disc = NULL:
+    cdev_disc_req_t* user_req_disc = NULL:
 
     uprintf("CDEV: Switch statement\n");
     switch(cmd){
@@ -292,8 +319,10 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
                 return EINVAL;
             }
 
+            user_req_disc = (cdev_disc_req_t*)addr;
+
             // function to return cdev discovery
-            
+            discover_users(sc, user_req_disc);
             
             CDEV_UNLOCK(sc);
         case CDEV_TX:
@@ -312,7 +341,18 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
                 return EINVAL;
             }
 
+            if(user_req_tx->receiver_id >= MAX_USERS || user_req_tx->receiver_id < 0){
+                device_printf(sc->dev, "User Wants To Send non existent receiver\n");
+                return EINVAL;
+            }
+
+            if(!sc->user_states[user_req_tx->receiver_id].valid){
+                device_printf(sc->dev, "User Wants To Send non existent receiver\n");
+                return EINVAL;
+            }
+
             // call transmmit function
+            transmit_to_user(sc, user_req_tx);
 
             CDEV_UNLOCK(sc);
             break;
