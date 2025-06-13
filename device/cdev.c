@@ -336,6 +336,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             discover_users(sc, user_req_disc);
             
             CDEV_UNLOCK(sc);
+            break;
         case CDEV_TX:
             uprintf("CDEV: Lock\n");
             if(check_attach_and_lock(sc)){
@@ -354,11 +355,13 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
             if(user_req_tx->receiver_id >= MAX_USERS || user_req_tx->receiver_id < 0){
                 uprintf("CDEV: User Wants To Send non existent receiver\n");
+                CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(!sc->user_states[user_req_tx->receiver_id].valid){
                 uprintf("CDEV: User Wants To Send non existent receiver\n");
+                CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
@@ -388,6 +391,8 @@ create_our_cdev(cdev_softc_t* sc){
     }
 
     sc->cdev->si_drv1 = sc;
+
+    sc->device_attached = true;
 
     return 0;
 }
@@ -440,11 +445,21 @@ cdev_modevent(module_t mod, int type, void *arg)
 
 	switch (type) {
 	case MOD_LOAD:
-        handle_load();
+        error = handle_load();
+        if(error){
+            printf("Device failed to load\n");
+        }
 		break;
 	case MOD_UNLOAD: /* FALLTHROUGH */
 	case MOD_SHUTDOWN:
-        destroy_our_cdev(cdev_cdev->si_drv1);
+        if(cdev_cdev == NULL){
+            return ENXIO;
+        }
+
+        error = destroy_our_cdev(cdev_cdev->si_drv1);
+        if(error){
+            printf("Couldn't unload device\n");
+        }
 		break;
 	default:
 		error = EOPNOTSUPP;
