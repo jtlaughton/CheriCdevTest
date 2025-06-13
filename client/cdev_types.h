@@ -6,11 +6,6 @@
 #define MAX_USERS 4
 #define PAGE_SIZE 4096
 
-typedef struct cap_req {
-    void* __capability user_cap;
-    void* __capability sealed_cap;
-} cap_req_t;
-
 typedef struct cdev_header_req {
     cap_req_t cap_req;
     uint32_t my_id;
