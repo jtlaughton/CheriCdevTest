@@ -44,7 +44,7 @@ typedef struct cdev_header_req {
 
 typedef struct cdev_disc_req {
     cap_req_t cap_req;
-    uint32_t found_receivers[MAX_USERS];
+    int32_t found_receivers[MAX_USERS];
 } cdev_disc_req_t;
 
 typedef struct tx_cdev_req {
@@ -54,12 +54,13 @@ typedef struct tx_cdev_req {
 } tx_cdev_req_t;
 
 typedef struct __attribute__((packed)) cdev_buffers {
-    char transmit_buffer[PAGE_SIZE / 2];
+    char transmit_buffer[(PAGE_SIZE / 2) - 2];
     char receive_buffer[(PAGE_SIZE / 2) - 4];
     uint32_t rx_offest;
 } cdev_buffers_t;
 
-#define CDEV_TX    _IOWR('E', 1, tx_cdev_req_t)
+#define CDEV_TX    _IOWR('E', 1, tx_cdev_req_t);
+#define CDEV_DISC  _IOWR('E', 2, cdev_disc_req_t);
 #define CDEV_GBY   _IOWR('E', 2, cdev_header_req_t);
 
 static d_open_t		cdev_open;
@@ -93,22 +94,27 @@ typedef struct sealed_cap_state {
     void * __capability sealed_cap;
 } sealed_cap_state_t;
 
+typedef struct user_state {
+    bool valid;
+    vm_object_t obj;
+    vm_map_t map;
+    void* __capability sealing_key;
+    sealed_cap_state_t cap_state;
+    cdev_buffers_t* page;
+    uint32_t user_id;
+} user_state_t;
+
 typedef struct cdev_soft_c {
     bool device_attached;
 
     struct cdev* cdev;
     struct mtx      sc_mtx;
 
-    uint32_t baudrate;
+    // message passing data
+    user_state_t user_states[MAX_USERS];
 
-    // cheri specific things
-    cdev_buffers_t* __kerncap page;
     bool dying;
     bool mapped;
-
-    void* __capability sealing_key;
-    sealed_cap_state_t cap_state;
-
 } cdev_softc_t;
 
 #endif

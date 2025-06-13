@@ -275,6 +275,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     }
 
     tx_cdev_req_t* user_req_tx = NULL;
+    cdev_disc_req_t user_req_disc = NULL:
 
     uprintf("CDEV: Switch statement\n");
     switch(cmd){
@@ -286,6 +287,15 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             revoke_cap_token(sc);
             CDEV_UNLOCK(sc);
             break;
+        case CDEV_DISC:
+            if(check_attach_and_lock(sc)){
+                return EINVAL;
+            }
+
+            // function to return cdev discovery
+            
+            
+            CDEV_UNLOCK(sc);
         case CDEV_TX:
             uprintf("CDEV: Lock\n");
             if(check_attach_and_lock(sc)){
@@ -296,7 +306,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             user_req_tx = (tx_cdev_req_t *)addr;
 
             uprintf("CDEV: check length\n");
-            if(user_req_tx->length > (PAGE_SIZE / 2)){
+            if(user_req_tx->length > ((PAGE_SIZE / 2) - 2)){
                 device_printf(sc->dev, "User Wants To Send Too Many Bytes\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
