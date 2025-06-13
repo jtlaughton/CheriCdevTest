@@ -88,13 +88,13 @@ int main(void) {
     } else {
         printf("CDEV_DISC waiting on peers\n");
     }
-    sleep(100);
+    sleep(1);
   }
 
   printf("Cap after ioctl: %#p\n", cap_request.user_cap);
   printf("Ioctl CDEV_DISC sucessful\n");
 
-  sleep(100);
+  sleep(1);
 
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
   printf("ioctling CDEV_TX\n");
@@ -112,7 +112,7 @@ int main(void) {
   printf("Cap after ioctl: %#p\n", cap_request.user_cap);
   printf("Ioctl CDEV_TX sucessful\n");
 
-  sleep(100);
+  sleep(1);
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
 
 
