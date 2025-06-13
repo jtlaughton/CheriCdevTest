@@ -312,6 +312,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     sc->user_states[current_users].pid = curthread->td_proc->p_pid;
     sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
     sc->user_states[current_users].page->rx_offest = 0;
+    sc->user_states[current_users].user_id = current_users;
 
     // seal user cap
     sc->user_states[current_users].cap_state.original_cap = req->user_cap;
