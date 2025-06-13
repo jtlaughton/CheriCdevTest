@@ -1,0 +1,96 @@
+#include <err.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <cheri/cheric.h>
+
+#include "modmap.h"
+#include "e1000pol.h"
+#include "../device/cdev.h"
+
+
+#define DEVNODE "/dev/cdev_cheri"
+#define PAGE_SIZE 4096
+
+static int cdev_cheri_fd = -1;
+static int modmap_fd;
+
+
+int main(void) {
+  // 1) Open the character device
+  cdev_cheri_fd = open(DEVNODE, O_RDWR);
+  if (cdev_cheri_fd < 0)
+    err(1, "open %s", DEVNODE);
+
+  //not sure what this is yet
+  cap_req_t cap_request;
+  cap_request.user_cap = malloc(4096); // placeholder
+
+  printf("User Cap: %p\n", cap_request.user_cap);
+
+  //using mmap_req_user_t to create the pointer
+  mmap_req_user_t req;
+  req.addr  = NULL;                     // required
+  req.len   = PAGE_SIZE;                     // page‐aligned
+  req.prot  = PROT_READ | PROT_WRITE | PROT_CAP;
+  req.flags = MAP_SHARED;               // or MAP_PRIVATE
+  req.fd    = cdev_cheri_fd;                       // anonymous
+  req.pos   = 0;
+  req.extra = (void * __capability)(&cap_request); 
+
+  printf("Before mmap ioctl:\n");
+  modmap_fd = open("/dev/modmap", O_RDWR);
+  if (modmap_fd < 0)
+    err(1, "open %s", modmap_fd);
+
+  // do the ioctl call and check for failure
+  if (ioctl(modmap_fd, MODMAPIOC_MAP, &req) < 0) {
+    perror("ioctl MODMAPIOC_MAP");
+    close(modmap_fd);
+    return 1;
+  }
+ 
+  cdev_buffers_t* __capability cdev_buffer = (cdev_buffers_t* __capability) req.addr;
+  printf("successfully retrived shared memeory address \n");
+  fflush(stdout);
+
+  printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
+
+  strncpy(cdev_buffer->transmit_buffer, "Hello World!", 12);
+
+  printf("ioctling discover\n");
+  printf("Cap before ioctl: %#p\n", cap_request.user_cap);
+
+  while true {
+    cdev_disc_req_t cdev_disc_req;
+    cdev_disc_req.cap_req = cap_request;
+
+    if (ioctl(cdev_cheri_fd, CDEV_DISC, &cdev_disc_req) < 0) {
+        perror("ioctl CDEV_DISC");
+        close(cdev_cheri_fd);
+            return 1;
+    }
+
+    if (cdev_disc_req.found_receivers[1] != -1) {
+        printf("CDEV_DISC found peers\n");
+        break;
+    } else {
+        printf("CDEV_DISC waiting on peers\n");
+    }
+    sleep(100);
+  }
+
+  printf("Cap after ioctl: %#p\n", cap_request.user_cap);
+  printf("Ioctl CDEV_DISC sucessful\n");
+
+
+  close(modmap_fd);
+  close(cdev_cheri_fd);
+  return 0;
+}
