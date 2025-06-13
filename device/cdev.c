@@ -106,6 +106,27 @@ cdev_open(struct cdev *dev, int flags, int devtype, struct thread *td)
 static void revoke_cap_token(cdev_softc_t* sc, uint32_t id_to_revoke){
     sc->user_states[id_to_revoke].cap_state.original_cap = NULL;
     sc->user_states[id_to_revoke].cap_state.sealed_cap = NULL;
+    
+    vm_map_t map = sc->user_states[id_to_revoke].map;
+    vm_object_t vm_obj = sc->user_states[id_to_revoke].obj;
+    
+    vm_map_entry_t entry;
+
+    VM_MAP_LOCK(map);
+    for (entry = map->header.next; entry != &map->header; entry = entry->next) {
+        if (entry->object.vm_object == vm_obj) {
+            break;
+        }
+    }
+    VM_MAP_UNLOCK(map);
+    vm_offset_t start = entry->start;
+    vm_offset_t end   = entry->end;
+
+    int result = vm_map_remove(map, start, end);
+    if (result != 0) {
+        printf("Failed to remove mapping\n");
+    }
+
 }
 
 static int
