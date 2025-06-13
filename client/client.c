@@ -11,7 +11,6 @@
 #include <cheri/cheric.h>
 
 #include "modmap.h"
-#include "e1000pol.h"
 #include "../device/cdev.h"
 
 
