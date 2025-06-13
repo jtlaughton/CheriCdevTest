@@ -157,6 +157,8 @@ int main(void) {
   tx_cdev_req_bad_cap.receiver_id = my_id;
   if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req_bad_cap) < 0) {
         printf("Driver rejected invalid request.\n");
+  } else {
+    printf("Driver failed to reject invalid request %d as %d.\n", my_id, victim);
   }
 
 
