@@ -55,7 +55,7 @@ typedef struct tx_cdev_req {
 
 typedef struct __attribute__((packed)) cdev_buffers {
     char transmit_buffer[(PAGE_SIZE / 2) - 2];
-    char receive_buffer[(PAGE_SIZE / 2) - 4];
+    char receive_buffer[(PAGE_SIZE / 2) - 2];
     uint32_t rx_offest;
 } cdev_buffers_t;
 
