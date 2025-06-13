@@ -82,7 +82,7 @@ int main(void) {
     }
     my_id = cdev_disc_req.your_id;
     printf("CDEV_DISC informed identity: %d\n", my_id);
-    if (cdev_disc_req.found_receivers[1] != -1) {
+    if (cdev_disc_req.found_receivers[0] != -1) {
         printf("CDEV_DISC found peers\n");
         break;
     } else {
