@@ -6,11 +6,6 @@
 #define MAX_USERS 4
 #define PAGE_SIZE 4096
 
-typedef struct cap_req {
-    void* __capability user_cap;
-    void* __capability sealed_cap;
-} cap_req_t;
-
 typedef struct cdev_header_req {
     cap_req_t cap_req;
     uint32_t my_id;
@@ -36,8 +31,8 @@ typedef struct __attribute__((packed)) cdev_buffers {
     uint32_t rx_offest;
 } cdev_buffers_t;
 
-#define CDEV_TX    _IOWR('E', 1, tx_cdev_req_t);
-#define CDEV_DISC  _IOWR('E', 2, cdev_disc_req_t);
-#define CDEV_GBY   _IOWR('E', 2, cdev_header_req_t);
+#define CDEV_TX    _IOWR('E', 1, tx_cdev_req_t)
+#define CDEV_DISC  _IOWR('E', 2, cdev_disc_req_t)
+#define CDEV_GBY   _IOWR('E', 2, cdev_header_req_t)
 
 #endif

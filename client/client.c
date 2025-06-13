@@ -23,12 +23,13 @@ static int modmap_fd;
 int main(void) {
     uint32_t my_id;
 
+  printf("Opening cdev_cheri fd.\n");
   // 1) Open the character device
   cdev_cheri_fd = open(DEVNODE, O_RDWR);
   if (cdev_cheri_fd < 0)
     err(1, "open %s", DEVNODE);
 
-  //not sure what this is yet
+  printf("attempting malloc() of User Cap.\n");
   cap_req_t cap_request;
   cap_request.user_cap = malloc(4096); // placeholder
 
@@ -69,7 +70,7 @@ int main(void) {
   printf("ioctling discover\n");
   printf("Cap before ioctl: %#p\n", cap_request.user_cap);
 
-  while true {
+  while (true) {
     cdev_disc_req_t cdev_disc_req;
     cdev_disc_req.cap_req = cap_request;
 
@@ -133,6 +134,8 @@ int main(void) {
   // No way to forge request, but can call goodbye with invalid my_id of another process
 
   // ADD an use after free call that should fail
+
+  // 
 
   // Try to read the rec buffer (should crash)
 
