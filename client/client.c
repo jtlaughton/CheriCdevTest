@@ -115,6 +115,21 @@ int main(void) {
   sleep(100);
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
 
+
+
+  printf("ioctling CDEV_GBY\n");
+  printf("Cap before ioctl: %#p\n", cap_request.user_cap);
+  cdev_header_req_t cdev_header_req;
+  cdev_header_req.cap_req = cap_request;
+  cdev_header_req.my_id = my_id;
+  if (ioctl(cdev_cheri_fd, CDEV_GBY, &cdev_header_req) < 0) {
+        perror("ioctl CDEV_GBY");
+        close(cdev_cheri_fd);
+            return 1;
+  }
+  printf("Cap after ioctl: %#p\n", cap_request.user_cap);
+  printf("Ioctl CDEV_GBY sucessful\n");
+
   close(modmap_fd);
   close(cdev_cheri_fd);
   return 0;
