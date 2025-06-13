@@ -1,6 +1,5 @@
 #include "cdev.h"
 
-#include <cerrno>
 #include <sys/param.h>
 
 #define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_DEF)
@@ -456,7 +455,7 @@ cdev_modevent(module_t mod, int type, void *arg)
         if(cdev_cdev == NULL){
             return ENXIO;
         }
-        
+
         error = destroy_our_cdev(cdev_cdev->si_drv1);
         if(error){
             printf("Couldn't unload device\n");
