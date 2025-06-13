@@ -2,9 +2,9 @@
 
 #include <sys/param.h>
 
-#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_DEF)
-#define CDEV_LOCK(sc)      mtx_lock(&(sc)->sc_mtx)
-#define CDEV_UNLOCK(sc)    mtx_unlock(&(sc)->sc_mtx)
+#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_SPIN)
+#define CDEV_LOCK(sc)      mtx_lock_spin(&(sc)->sc_mtx)
+#define CDEV_UNLOCK(sc)    mtx_unlock_spin(&(sc)->sc_mtx)
 #define CDEV_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
 
 static size_t current_users = 0;
@@ -235,7 +235,6 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
         (current_users == MAX_USERS) ||
         (offset != NULL && *offset != 0) ||
         size != PAGE_SIZE){
-		CDEV_UNLOCK(sc);
         return EINVAL;
     }
 
