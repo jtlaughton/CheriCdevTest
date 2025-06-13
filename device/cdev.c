@@ -72,7 +72,7 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
             continue;
         }
 
-        uprintf("CDEV: Chekcing equality\n");
+        //uprintf("CDEV: Chekcing equality\n");
         void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
         if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
             CDEV_UNLOCK(sc);
@@ -280,7 +280,6 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     sc->user_states[current_users].pid = curthread->td_proc->p_pid;
     sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
 
-    uprintf("CDEV: sealing key %#p\n", sc->user_states[current_users].sealing_key);
     sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
 
     // seal user cap
@@ -381,29 +380,23 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             CDEV_UNLOCK(sc);
             break;
         case CDEV_TX:
-            uprintf("CDEV: Lock\n");
             if(check_attach_and_lock(sc)){
                 return EINVAL;
             }
 
-            uprintf("CDEV: Read tx\n");
             user_req_tx = (tx_cdev_req_t *)addr;
 
-            uprintf("CDEV: check length\n");
             if(user_req_tx->length > ((PAGE_SIZE / 2) - 2)){
-                uprintf("CDEV: User Wants To Send Too Many Bytes\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(user_req_tx->receiver_id >= MAX_USERS || user_req_tx->receiver_id < 0){
-                uprintf("CDEV: User Wants To Send non existent receiver\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(!sc->user_states[user_req_tx->receiver_id].valid){
-                uprintf("CDEV: User Wants To Send non existent receiver\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
