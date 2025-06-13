@@ -2,7 +2,7 @@
 
 #include <sys/param.h>
 
-#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), "cdev softc lock", MTX_DEF)
+#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_DEF)
 #define CDEV_LOCK(sc)      mtx_lock(&(sc)->sc_mtx)
 #define CDEV_UNLOCK(sc)    mtx_unlock(&(sc)->sc_mtx)
 #define CDEV_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
