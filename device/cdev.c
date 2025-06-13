@@ -72,7 +72,7 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
             continue;
         }
 
-        uprintf("CDEV: Chekcing equality\n");
+        //uprintf("CDEV: Chekcing equality\n");
         void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
         if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
             CDEV_UNLOCK(sc);
@@ -133,9 +133,8 @@ cdev_close(struct cdev *dev, int flags, int devtype, struct thread *td)
             return 0;
         }
 
-        free(sc->user_states[i].page, M_DEVBUF);
-        sc->user_states[i].page_freed = true;
-
+        current_users--;
+        sc->user_states[i].valid = false;
         revoke_cap_token(sc, i);
 
         CDEV_UNLOCK(sc);
@@ -280,9 +279,6 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     sc->user_states[current_users].pid = curthread->td_proc->p_pid;
     sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
 
-    uprintf("CDEV: sealing key %#p\n", sc->user_states[current_users].sealing_key);
-    sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
-
     // seal user cap
     sc->user_states[current_users].cap_state.original_cap = req->user_cap;
     sc->user_states[current_users].cap_state.sealed_cap = cheri_seal(req->user_cap, sc->user_states[current_users].sealing_key);
@@ -392,29 +388,23 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             CDEV_UNLOCK(sc);
             break;
         case CDEV_TX:
-            uprintf("CDEV: Lock\n");
             if(check_attach_and_lock(sc)){
                 return EINVAL;
             }
 
-            uprintf("CDEV: Read tx\n");
             user_req_tx = (tx_cdev_req_t *)addr;
 
-            uprintf("CDEV: check length\n");
-            if(user_req_tx->length > ((PAGE_SIZE / 2) - 2) || user_req_tx->length < 0 ){
-                uprintf("CDEV: User Wants To Send Too Many Bytes Or Too Few\n");
+            if(user_req_tx->length > ((PAGE_SIZE / 2) - 2)){
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(user_req_tx->receiver_id >= MAX_USERS || user_req_tx->receiver_id < 0){
-                uprintf("CDEV: User Wants To Send non existent receiver\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(!sc->user_states[user_req_tx->receiver_id].valid){
-                uprintf("CDEV: User Wants To Send non existent receiver\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
@@ -445,6 +435,11 @@ create_our_cdev(cdev_softc_t* sc){
     }
 
     sc->cdev->si_drv1 = sc;
+
+    // preallocate buffers
+    for(size_t i = 0; i < MAX_USERS; i++){
+        sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
+    }
 
     sc->device_attached = true;
 
