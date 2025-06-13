@@ -94,6 +94,26 @@ int main(void) {
   printf("Cap after ioctl: %#p\n", cap_request.user_cap);
   printf("Ioctl CDEV_DISC sucessful\n");
 
+  sleep(100);
+
+  printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
+  printf("ioctling CDEV_TX\n");
+  printf("Cap before ioctl: %#p\n", cap_request.user_cap);
+  tx_cdev_req_t tx_cdev_req;
+  tx_cdev_req.cap_req = cap_request;
+  strncpy(cdev_buffer->transmit_buffer, "Hello World!", 13);
+  tx_cdev_req.length = 13;
+  tx_cdev_req.receiver_id = my_id;
+  if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req) < 0) {
+        perror("ioctl CDEV_TX");
+        close(cdev_cheri_fd);
+            return 1;
+  }
+  printf("Cap after ioctl: %#p\n", cap_request.user_cap);
+  printf("Ioctl CDEV_TX sucessful\n");
+
+  sleep(100);
+  printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
 
   close(modmap_fd);
   close(cdev_cheri_fd);
