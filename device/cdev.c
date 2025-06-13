@@ -116,6 +116,7 @@ static void revoke_cap_token(cdev_softc_t* sc, uint32_t id_to_revoke){
 
     VM_MAP_ENTRY_FOREACH(entry, map){
         if (entry->object.vm_object == vm_obj) {
+            uprintf("Found the vm object\n");
             break;
         }
     }
