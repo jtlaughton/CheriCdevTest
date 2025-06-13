@@ -21,7 +21,7 @@ static int modmap_fd;
 
 
 int main(void) {
-    uint32_t my_id;
+    uint32_t my_id = -1;
 
   printf("Opening cdev_cheri fd.\n");
   // 1) Open the character device
@@ -73,13 +73,14 @@ int main(void) {
   while (true) {
     cdev_disc_req_t cdev_disc_req;
     cdev_disc_req.cap_req = cap_request;
+    cdev_disc_req.my_id = my_id;
 
     if (ioctl(cdev_cheri_fd, CDEV_DISC, &cdev_disc_req) < 0) {
         perror("ioctl CDEV_DISC");
         close(cdev_cheri_fd);
             return 1;
     }
-    my_id = cdev_disc_req.my_id;
+    my_id = cdev_disc_req.your_id;
     printf("CDEV_DISC informed identity: %d\n", my_id);
     if (cdev_disc_req.found_receivers[1] != -1) {
         printf("CDEV_DISC found peers\n");
@@ -101,6 +102,7 @@ int main(void) {
   printf("Cap before ioctl: %#p\n", cap_request.sealed_cap);
   tx_cdev_req_t tx_cdev_req;
   tx_cdev_req.cap_req = cap_request;
+  tx_cdev_req.my_id = my_id;
   strncpy(cdev_buffer->transmit_buffer, "Hello World!", 13);
   tx_cdev_req.length = 13;
   tx_cdev_req.receiver_id = my_id;
