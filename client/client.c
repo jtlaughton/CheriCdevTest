@@ -23,12 +23,13 @@ static int modmap_fd;
 int main(void) {
     uint32_t my_id;
 
+  printf("Opening cdev_cheri fd.\n");
   // 1) Open the character device
   cdev_cheri_fd = open(DEVNODE, O_RDWR);
   if (cdev_cheri_fd < 0)
     err(1, "open %s", DEVNODE);
 
-  //not sure what this is yet
+  printf("attempting malloc() of User Cap.\n");
   cap_req_t cap_request;
   cap_request.user_cap = malloc(4096); // placeholder
 
