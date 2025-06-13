@@ -23,6 +23,8 @@ static int modmap_fd;
 
 
 int main(void) {
+    uint32_t my_id;
+
   // 1) Open the character device
   cdev_cheri_fd = open(DEVNODE, O_RDWR);
   if (cdev_cheri_fd < 0)
@@ -76,7 +78,8 @@ int main(void) {
         close(cdev_cheri_fd);
             return 1;
     }
-
+    my_id = cdev_disc_req.my_id;
+    printf("CDEV_DISC informed identity: %d\n", my_id);
     if (cdev_disc_req.found_receivers[1] != -1) {
         printf("CDEV_DISC found peers\n");
         break;
