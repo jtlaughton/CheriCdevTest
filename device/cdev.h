@@ -54,7 +54,7 @@ typedef struct tx_cdev_req {
     cap_req_t cap_req;
     uint32_t my_id;
     size_t length;
-    uint32_t receiver_id
+    uint32_t receiver_id;
 } tx_cdev_req_t;
 
 typedef struct __attribute__((packed)) cdev_buffers {

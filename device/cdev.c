@@ -1,6 +1,5 @@
 #include "cdev.h"
 
-#include <cerrno>
 #include <sys/param.h>
 
 #define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), "cdev softc lock", MTX_DEF)
@@ -412,7 +411,7 @@ destroy_our_cdev(cdev_softc_t* sc){
         if(sc->user_states[i].valid){
             continue;
         }
-        
+
         if(sc->user_states[i].page_freed){
             continue;
         }
