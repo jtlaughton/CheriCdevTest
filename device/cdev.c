@@ -2,9 +2,10 @@
 
 #include <sys/param.h>
 
-#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_SPIN)
-#define CDEV_LOCK(sc)      mtx_lock_spin(&(sc)->sc_mtx)
-#define CDEV_UNLOCK(sc)    mtx_unlock_spin(&(sc)->sc_mtx)
+#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_DEF)
+#define CDEV_LOCK(sc)      mtx_lock(&(sc)->sc_mtx)
+#define CDEV_TRY_LOCK(sc)  mtx_trylock(&(sc)->sc_mtx)
+#define CDEV_UNLOCK(sc)    mtx_unlock(&(sc)->sc_mtx)
 #define CDEV_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
 
 static size_t current_users = 0;
@@ -237,24 +238,29 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
         return EINVAL;
     }
 
-	CDEV_LOCK(sc);
+    if(!CDEV_TRY_LOCK(sc)){
+        return EBUSY;
+    }
+
     // only allow mmap if not in teardown
 	if (sc->dying) {
 		CDEV_UNLOCK(sc);
 		return (ENXIO);
 	}
-	CDEV_UNLOCK(sc);
 
     // make sure tag provided is valid
     if(!cheri_gettag(req->user_cap)){
+		CDEV_UNLOCK(sc);
         return EINVAL;
     }
 
     // create vm object for user
 	obj = cdev_pager_allocate(sc, OBJT_DEVICE, &cdev_cdev_pager_ops,
 	    OFF_TO_IDX(PAGE_SIZE), nprot | VM_PROT_CAP, *offset, curthread->td_ucred);
-	if (obj == NULL)
+	if (obj == NULL){
+		CDEV_UNLOCK(sc);
 		return (ENXIO);
+    }
 
     obj->flags |= OBJ_HASCAP;
 
@@ -264,7 +270,6 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 	 * be waiting in destroy_dev().  Just release the VM object
 	 * and fail the mapping request.
 	 */
-	CDEV_LOCK(sc);
 	if (sc->dying) {
 	    CDEV_UNLOCK(sc);
 		vm_object_deallocate(obj);
