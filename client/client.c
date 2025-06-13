@@ -88,7 +88,7 @@ int main(void) {
     }
     my_id = cdev_disc_req.your_id;
     printf("CDEV_DISC informed identity: %d\n", my_id);
-    if (cdev_disc_req.found_receivers[1] != -1) {
+    if (cdev_disc_req.found_receivers[0] != -1) {
         printf("CDEV_DISC found peers\n");
         break;
     } else {
@@ -111,7 +111,7 @@ int main(void) {
   tx_cdev_req.my_id = my_id;
   strcpy(cdev_buffer->transmit_buffer, "Hello World!", 12);
   tx_cdev_req.length = 13;
-  tx_cdev_req.receiver_id = cdev_disc_req.found_receivers[1];
+  tx_cdev_req.receiver_id = my_id;
   if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req) < 0) {
         perror("ioctl CDEV_TX");
         close(cdev_cheri_fd);
