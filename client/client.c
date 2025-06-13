@@ -11,11 +11,10 @@
 #include <cheri/cheric.h>
 
 #include "modmap.h"
-#include "../device/cdev.h"
+#include "cdev_types.h"
 
 
 #define DEVNODE "/dev/cdev_cheri"
-#define PAGE_SIZE 4096
 
 static int cdev_cheri_fd = -1;
 static int modmap_fd;
