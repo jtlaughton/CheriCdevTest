@@ -76,7 +76,6 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
         //uprintf("CDEV: Chekcing equality\n");
         void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
         if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
-            CDEV_UNLOCK(sc);
             continue;
         }
 
@@ -238,19 +237,19 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
         return EINVAL;
     }
 
-    if(!CDEV_TRY_LOCK(sc)){
-        return EBUSY;
-    }
+    // if(!CDEV_TRY_LOCK(sc)){
+    //     return EBUSY;
+    // }
 
     // only allow mmap if not in teardown
 	if (sc->dying) {
-		CDEV_UNLOCK(sc);
+		//CDEV_UNLOCK(sc);
 		return (ENXIO);
 	}
 
     // make sure tag provided is valid
     if(!cheri_gettag(req->user_cap)){
-		CDEV_UNLOCK(sc);
+		//CDEV_UNLOCK(sc);
         return EINVAL;
     }
 
@@ -258,7 +257,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 	obj = cdev_pager_allocate(sc, OBJT_DEVICE, &cdev_cdev_pager_ops,
 	    OFF_TO_IDX(PAGE_SIZE), nprot | VM_PROT_CAP, *offset, curthread->td_ucred);
 	if (obj == NULL){
-		CDEV_UNLOCK(sc);
+		//CDEV_UNLOCK(sc);
 		return (ENXIO);
     }
 
@@ -271,7 +270,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 	 * and fail the mapping request.
 	 */
 	if (sc->dying) {
-	    CDEV_UNLOCK(sc);
+	    //CDEV_UNLOCK(sc);
 		vm_object_deallocate(obj);
 		return (ENXIO);
 	}
@@ -291,7 +290,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     req->sealed_cap = sc->user_states[current_users].cap_state.sealed_cap;
 
     current_users++;
-	CDEV_UNLOCK(sc);
+	//CDEV_UNLOCK(sc);
 
 	return (0);
 }
@@ -318,17 +317,23 @@ static int
 transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
     char* transmit_buffer = sc->user_states[ req->my_id ].page->transmit_buffer;
     char* receive_buffer = sc->user_states[ req->receiver_id ].page->receive_buffer;
-    uint32_t rx_offest = sc->user_states[ req->receiver_id ].page->rx_offest;
+    //uint32_t rx_offest = 0;
 
-    uint32_t check_val = ((PAGE_SIZE / 2) - 2)-rx_offest;
-    if(req->length < check_val) {
-        memcpy(&receive_buffer[rx_offest], transmit_buffer, req->length);
-        rx_offest += req->length;
-    } else {
-        memcpy(&receive_buffer[rx_offest], transmit_buffer, check_val);
-        rx_offest += check_val;
-    }
-    sc->user_states[ req->receiver_id ].page->rx_offest = rx_offest;
+    uprintf("transmit_cap: %#p\n", transmit_buffer);
+    uprintf("receive_cap: %#p\n", receive_buffer);
+
+    memcpy(receive_buffer, transmit_buffer, 0);
+    sc->user_states[req->receiver_id].page->rx_offest = 0;
+
+    // uint32_t check_val = ((PAGE_SIZE / 2) - 2)-rx_offest;
+    // if(req->length < check_val) {
+    //     memcpy(cheri_incoffset(receive_buffer, rx_offest), transmit_buffer, req->length);
+    //     rx_offest += req->length;
+    // } else {
+    //     memcpy(&receive_buffer[rx_offest], transmit_buffer, check_val);
+    //     rx_offest += check_val;
+    // }
+    // sc->user_states[ req->receiver_id ].page->rx_offest = rx_offest;
     return 0;
 }
 
@@ -376,6 +381,7 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             }
 
             if(header_req->my_id >= MAX_USERS || header_req->my_id < 0){
+                CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
