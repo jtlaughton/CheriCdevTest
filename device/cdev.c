@@ -402,22 +402,26 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             break;
         case CDEV_TX:
             if(check_attach_and_lock(sc)){
+                uprintf("CDEV: lock failed\n");
                 return EINVAL;
             }
 
             user_req_tx = (tx_cdev_req_t *)addr;
 
             if(user_req_tx->length > ((PAGE_SIZE / 2) - 2)){
+                uprintf("CDEV: length check failed\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(user_req_tx->receiver_id >= MAX_USERS || user_req_tx->receiver_id < 0){
+                uprintf("CDEV: receiver check failed\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
 
             if(!sc->user_states[user_req_tx->receiver_id].valid){
+                uprintf("CDEV: receiver valid check failed\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
