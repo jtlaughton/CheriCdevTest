@@ -130,6 +130,35 @@ int main(void) {
   printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
 
 
+  sleep(1);
+  printf("Attempting to send as a different user.");
+  tx_cdev_req_t tx_cdev_req_bad_id;
+  tx_cdev_req_bad_id.cap_req = cap_request;
+  tx_cdev_req_bad_id.my_id = 1;
+  strncpy(cdev_buffer->transmit_buffer, "Hello World!", 12);
+  tx_cdev_req_bad_id.length = 13;
+  tx_cdev_req_bad_id.receiver_id = my_id;
+  if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req_bad_id) < 0) {
+        printf("Driver rejected forged request.");
+  }
+
+  printf("Attempting to send without capability token.");
+  uint32_t victim = cdev_disc_req.found_receivers[1];
+  if (victim == my_id) {
+    victim = cdev_disc_req.found_receivers[0];
+  }
+  cap_req_t bad_cap_request;
+  tx_cdev_req_t tx_cdev_req_bad_cap;
+  bad_cap_request.user_cap = malloc(4096); // placeholder
+  tx_cdev_req_bad_cap.cap_req = bad_cap_request;
+  tx_cdev_req_bad_cap.my_id = my_id;
+  strncpy(cdev_buffer->transmit_buffer, "Hello World!", 12);
+  tx_cdev_req_bad_cap.length = 13;
+  tx_cdev_req_bad_cap.receiver_id = my_id;
+  if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req_bad_cap) < 0) {
+        printf("Driver rejected invalid request.");
+  }
+
 
   printf("ioctling CDEV_GBY\n");
   printf("Cap before ioctl: %#p\n", cap_request.sealed_cap);
@@ -151,6 +180,7 @@ int main(void) {
   // 
 
   // Try to read the rec buffer (should crash)
+  printf("Should not print %c\n", cdev_buffer->receive_buffer[0]);
 
   close(modmap_fd);
   close(cdev_cheri_fd);
