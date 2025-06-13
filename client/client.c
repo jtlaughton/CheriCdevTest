@@ -88,15 +88,16 @@ int main(void) {
     } else {
         printf("CDEV_DISC waiting on peers\n");
     }
-    sleep(100);
+    sleep(1);
   }
 
   printf("Cap after ioctl: %#p\n", cap_request.user_cap);
   printf("Ioctl CDEV_DISC sucessful\n");
 
-  sleep(100);
+  sleep(1);
 
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
+  printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
   printf("ioctling CDEV_TX\n");
   printf("Cap before ioctl: %#p\n", cap_request.user_cap);
   tx_cdev_req_t tx_cdev_req;
@@ -112,8 +113,9 @@ int main(void) {
   printf("Cap after ioctl: %#p\n", cap_request.user_cap);
   printf("Ioctl CDEV_TX sucessful\n");
 
-  sleep(100);
+  sleep(1);
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
+  printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
 
 
 
@@ -129,6 +131,12 @@ int main(void) {
   }
   printf("Cap after ioctl: %#p\n", cap_request.user_cap);
   printf("Ioctl CDEV_GBY sucessful\n");
+
+  // No way to forge request, but can call goodbye with invalid my_id of another process
+
+  // ADD an use after free call that should fail
+
+  // Try to read the rec buffer (should crash)
 
   close(modmap_fd);
   close(cdev_cheri_fd);
