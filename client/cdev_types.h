@@ -2,6 +2,7 @@
 #define CDEV_TYPES
 #include <stdint.h>
 #include <stddef.h>
+#include "modmap.h"
 
 #define MAX_USERS 4
 #define PAGE_SIZE 4096
@@ -33,6 +34,6 @@ typedef struct __attribute__((packed)) cdev_buffers {
 
 #define CDEV_TX    _IOWR('E', 1, tx_cdev_req_t)
 #define CDEV_DISC  _IOWR('E', 2, cdev_disc_req_t)
-#define CDEV_GBY   _IOWR('E', 2, cdev_header_req_t)
+#define CDEV_GBY   _IOWR('E', 3, cdev_header_req_t)
 
 #endif
