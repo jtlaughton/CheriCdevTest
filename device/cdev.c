@@ -78,6 +78,8 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
             CDEV_UNLOCK(sc);
             return EPERM;
         }
+
+        found = true;
     }
 
     CDEV_UNLOCK(sc);
