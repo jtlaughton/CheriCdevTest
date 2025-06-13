@@ -118,23 +118,20 @@ cdev_close(struct cdev *dev, int flags, int devtype, struct thread *td)
     if(sc != NULL){
         CDEV_LOCK(sc);
 
-        // size_t i;
-        // for(i = 0; i < MAX_USERS; i++){
-        //     if(!sc->user_states[i].valid){
-        //         continue;
-        //     }
-        //     if(sc->user_states[i].pid == curthread->td_proc->p_pid){
-        //         break;
-        //     }
-        // }
+        size_t i;
+        for(i = 0; i < MAX_USERS; i++){
+            if(!sc->user_states[i].valid){
+                continue;
+            }
+            if(sc->user_states[i].pid == curthread->td_proc->p_pid){
+                break;
+            }
+        }
 
-        // if(i == MAX_USERS){
-        //     CDEV_UNLOCK(sc);
-        //     return 0;
-        // }
-
-        // free(sc->user_states[i].page, M_DEVBUF);
-        // sc->user_states[i].page_freed = true;
+        if(i == MAX_USERS){
+            CDEV_UNLOCK(sc);
+            return 0;
+        }
 
         revoke_cap_token(sc, i);
 
