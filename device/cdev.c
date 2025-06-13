@@ -319,8 +319,10 @@ transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
     char* receive_buffer = sc->user_states[ req->receiver_id ].page->receive_buffer;
     //uint32_t rx_offest = 0;
 
-    uprintf("transmit_cap: %#p\n", transmit_buffer);
-    uprintf("receive_cap: %#p\n", receive_buffer);
+    uprintf("page_cap (mine) (transmit): %#p\n", sc->user_states[req->my_id].page);
+
+    uprintf("transmit_cap (transmit): %#p\n", transmit_buffer);
+    uprintf("receive_cap (transmit): %#p\n", receive_buffer);
 
     memcpy(receive_buffer, transmit_buffer, 0);
     sc->user_states[req->receiver_id].page->rx_offest = 0;
@@ -369,7 +371,6 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
         }
     }
     
-
     tx_cdev_req_t* user_req_tx = NULL;
     cdev_disc_req_t* user_req_disc = NULL;
 
@@ -397,6 +398,8 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
             // function to return cdev discovery
             discover_users(sc, user_req_disc);
+
+            uprintf("page_cap (mine) (disc): %#p\n", sc->user_states[user_req_disc->my_id].page);
             
             CDEV_UNLOCK(sc);
             break;
@@ -427,7 +430,9 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             }
 
             // call transmmit function
+            uprintf("page_cap (mine) (before transmit): %#p\n", sc->user_states[user_req_disc->my_id].page);
             transmit_to_user(sc, user_req_tx);
+            uprintf("page_cap (mine) (after transmit): %#p\n", sc->user_states[user_req_disc->my_id].page);
 
             CDEV_UNLOCK(sc);
             break;
