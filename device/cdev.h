@@ -40,6 +40,7 @@ typedef struct cap_req {
 
 typedef struct cdev_header_req {
     cap_req_t cap_req;
+    uint32_t my_id;
 } cdev_header_req_t;
 
 typedef struct cdev_disc_req {
@@ -108,7 +109,7 @@ typedef struct cdev_soft_c {
     bool device_attached;
 
     struct cdev* cdev;
-    struct mtx      sc_mtx;
+    struct mtx sc_mtx;
 
     // message passing data
     user_state_t user_states[MAX_USERS];
