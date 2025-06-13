@@ -317,7 +317,7 @@ static int
 transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
     char* transmit_buffer = sc->user_states[ req->my_id ].page->transmit_buffer;
     char* receive_buffer = sc->user_states[ req->receiver_id ].page->receive_buffer;
-    uint32_t rx_offest = 0;
+    //uint32_t rx_offest = 0;
 
     memcpy(receive_buffer, transmit_buffer, req->length);
     sc->user_states[req->receiver_id].page->rx_offest = req->length;
