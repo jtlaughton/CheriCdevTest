@@ -2,7 +2,7 @@
 
 #include <sys/param.h>
 
-#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), "cdev softc lock", MTX_DEF)
+#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_DEF)
 #define CDEV_LOCK(sc)      mtx_lock(&(sc)->sc_mtx)
 #define CDEV_UNLOCK(sc)    mtx_unlock(&(sc)->sc_mtx)
 #define CDEV_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
@@ -428,6 +428,7 @@ destroy_our_cdev(cdev_softc_t* sc){
 static int
 handle_load(void){
     cdev_softc_t* sc = (cdev_softc_t*)malloc(sizeof(cdev_softc_t), M_DEVBUF, M_WAITOK | M_ZERO);
+    CDEV_LOCK_INIT(sc);
 
     return create_our_cdev(sc);
 }
