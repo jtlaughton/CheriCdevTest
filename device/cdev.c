@@ -238,19 +238,19 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
         return EINVAL;
     }
 
-    if(!CDEV_TRY_LOCK(sc)){
-        return EBUSY;
-    }
+    // if(!CDEV_TRY_LOCK(sc)){
+    //     return EBUSY;
+    // }
 
     // only allow mmap if not in teardown
 	if (sc->dying) {
-		CDEV_UNLOCK(sc);
+		//CDEV_UNLOCK(sc);
 		return (ENXIO);
 	}
 
     // make sure tag provided is valid
     if(!cheri_gettag(req->user_cap)){
-		CDEV_UNLOCK(sc);
+		//CDEV_UNLOCK(sc);
         return EINVAL;
     }
 
@@ -258,7 +258,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 	obj = cdev_pager_allocate(sc, OBJT_DEVICE, &cdev_cdev_pager_ops,
 	    OFF_TO_IDX(PAGE_SIZE), nprot | VM_PROT_CAP, *offset, curthread->td_ucred);
 	if (obj == NULL){
-		CDEV_UNLOCK(sc);
+		//CDEV_UNLOCK(sc);
 		return (ENXIO);
     }
 
@@ -271,7 +271,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 	 * and fail the mapping request.
 	 */
 	if (sc->dying) {
-	    CDEV_UNLOCK(sc);
+	    //CDEV_UNLOCK(sc);
 		vm_object_deallocate(obj);
 		return (ENXIO);
 	}
@@ -291,7 +291,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     req->sealed_cap = sc->user_states[current_users].cap_state.sealed_cap;
 
     current_users++;
-	CDEV_UNLOCK(sc);
+	//CDEV_UNLOCK(sc);
 
 	return (0);
 }
