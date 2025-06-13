@@ -133,6 +133,7 @@ cdev_close(struct cdev *dev, int flags, int devtype, struct thread *td)
             return 0;
         }
 
+        current_users--;
         sc->user_states[i].valid = false;
         revoke_cap_token(sc, i);
 
