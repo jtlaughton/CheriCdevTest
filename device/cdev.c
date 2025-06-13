@@ -1,46 +1,14 @@
 #include "cdev.h"
 
 #include <cerrno>
-#include <contrib/dev/acpica/include/acpi.h>
-#include <dev/acpica/acpivar.h>
-#include <stddef.h>
 #include <sys/param.h>
-
-#define REFCLOCK 24000000
 
 #define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev), "cdev softc lock", MTX_DEF)
 #define CDEV_LOCK(sc)      mtx_lock(&(sc)->sc_mtx)
 #define CDEV_UNLOCK(sc)    mtx_unlock(&(sc)->sc_mtx)
 #define CDEV_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
 
-// Forward declarations for device methods
-static int cdev_acpi_probe(device_t dev);
-static int cdev_acpi_attach(device_t dev);
-static int cdev_acpi_detach(device_t dev);
-
-// ACPI-compatible hardware IDs for the PL011 CDEV
-static char *cdev_ids[] = { "ARMH0011", NULL };
-
-static int check_cap_token(cdev_softc_t* sc, uint32_t id, void* __capability cap_token){
-    if(!sc->user_states[id].valid){
-        return EINVAL;
-    }
-
-    if(sc->user_states[id].cap_state.sealed_cap == NULL){
-        return EINVAL;
-    }
-
-    if(cap_token == NULL){
-        return EINVAL;
-    }
-
-    void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[id].sealing_key);
-    if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[id].cap_state.original_cap)){
-        return EPERM;
-    }
-
-    return 0;
-}
+static size_t current_users = 0;
 
 static int check_attach_and_lock(cdev_softc_t *sc){
     if(sc == NULL){
@@ -53,6 +21,36 @@ static int check_attach_and_lock(cdev_softc_t *sc){
         return EINVAL;
     }
 
+    return 0;
+}
+
+static int check_cap_token(cdev_softc_t* sc, uint32_t id, void* __capability cap_token){
+    if(check_attach_and_lock(sc)){
+        return EINVAL;
+    }
+
+    if(!sc->user_states[id].valid){
+        CDEV_UNLOCK(sc);
+        return EINVAL;
+    }
+
+    if(sc->user_states[id].cap_state.sealed_cap == NULL){
+        CDEV_UNLOCK(sc);
+        return EINVAL;
+    }
+
+    if(cap_token == NULL){
+        CDEV_UNLOCK(sc);
+        return EINVAL;
+    }
+
+    void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[id].sealing_key);
+    if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[id].cap_state.original_cap)){
+        CDEV_UNLOCK(sc);
+        return EPERM;
+    }
+
+    CDEV_UNLOCK(sc);
     return 0;
 }
 
@@ -73,9 +71,9 @@ cdev_open(struct cdev *dev, int flags, int devtype, struct thread *td)
 }
 
 // probably will be expanded in the future to revoke all caps in the vm object and such
-static void revoke_cap_token(cdev_softc_t* sc){
-    sc->cap_state.original_cap = NULL;
-    sc->cap_state.sealed_cap = NULL;
+static void revoke_cap_token(cdev_softc_t* sc, uint32_t id_to_revoke){
+    sc->user_states[id_to_revoke].cap_state.original_cap = NULL;
+    sc->user_states[id_to_revoke].cap_state.sealed_cap = NULL;
 }
 
 static int
@@ -87,48 +85,31 @@ cdev_close(struct cdev *dev, int flags, int devtype, struct thread *td)
 
     if(sc != NULL){
         CDEV_LOCK(sc);
-        revoke_cap_token(sc);
+
+        size_t i;
+        for(i = 0; i < MAX_USERS; i++){
+            if(!sc->user_states[i].valid){
+                continue;
+            }
+            if(sc->user_states[i].pid == curthread->td_proc->p_pid){
+                break;
+            }
+        }
+
+        if(i == MAX_USERS){
+            CDEV_UNLOCK(sc);
+            return 0;
+        }
+
+        free(sc->user_states[i].page, M_DEVBUF);
+        sc->user_states[i].page_freed = true;
+
+        revoke_cap_token(sc, i);
+
         CDEV_UNLOCK(sc);
     }
 
 	return (0);
-}
-
-static int
-create_our_cdev(cdev_softc_t* sc){
-    sc->cdev = make_dev(&cdev_cdevsw, 0, UID_ROOT, GID_WHEEL,
-        0600, "cdev-cheri");
-    if(sc->cdev == NULL){
-        return EINVAL;
-    }
-
-    sc->cdev->si_drv1 = sc;
-
-    // allocate shared mem using VM system instead of contigmalloc
-    sc->page = (cdev_buffers_t* __kerncap)malloc(sizeof(cdev_registers), M_DEVBUF, M_WAITOK | M_ZERO);
-    if(sc->page == NULL){
-        destroy_dev(sc->cdev);
-        device_printf(sc->dev, "Failed to create shared mem\n");
-        return EINVAL;
-    }
-
-    return 0;
-}
-
-static int
-destroy_our_cdev(cdev_softc_t* sc){
-    CDEV_LOCK(sc);
-    if(sc->mapped){
-        CDEV_UNLOCK(sc);
-        return EBUSY;
-    }
-
-    sc->dying = true;
-    CDEV_UNLOCK(sc);
-
-    destroy_dev(sc->cdev);
-    free(sc->page, M_DEVBUF);
-    return 0;
 }
 
 static int
@@ -158,7 +139,22 @@ cdev_pager_fault(vm_object_t obj, vm_ooffset_t offset, int prot, vm_page_t *mres
 	vm_page_t page;
 	vm_paddr_t paddr;
 
-	paddr = pmap_kextract(cheri_getaddress(sc->page) + offset);
+    cdev_buffers_t* user_page = NULL;
+    for(size_t i = 0; i < MAX_USERS; i++){
+        if(!sc->user_states[i].valid){
+            continue;
+        }
+        if(sc->user_states[i].pid == curthread->td_proc->p_pid){
+            user_page = sc->user_states[i].page;
+            break;
+        }
+    }
+
+    if(user_page == NULL){
+        return VM_PAGER_FAIL;
+    }
+
+	paddr = pmap_kextract(cheri_getaddress(user_page) + offset);
 
 	/* See the end of old_dev_pager_fault in device_pager.c. */
 	if (((*mres)->flags & (PG_FICTITIOUS | PGA_CAPSTORE)) != 0) {
@@ -189,7 +185,7 @@ create_sealing_key(size_t id){
     return derived;
 }
 
-static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t size, vm_object_t *object, int nprot, void * __kerncap extra){
+static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t size, vm_object_t *object, int nprot, void * __kerncap extra, vm_map_t map){
     cdev_softc_t *sc = cdev->si_drv1;
 	vm_object_t obj;
     cap_req_t* __kerncap req = NULL;
@@ -202,16 +198,16 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     req = (cap_req_t* __kerncap)extra;
 
     // validate that request is properly formed
-	CDEV_LOCK(sc);
     if (req->user_cap == NULL ||
         sc == NULL ||
-        sc->cap_state.sealed_cap != NULL ||
+        (current_users == MAX_USERS) ||
         (offset != NULL && *offset != 0) ||
         size != PAGE_SIZE){
 		CDEV_UNLOCK(sc);
         return EINVAL;
     }
 
+	CDEV_LOCK(sc);
     // only allow mmap if not in teardown
 	if (sc->dying) {
 		CDEV_UNLOCK(sc);
@@ -247,11 +243,20 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 
 	*object = obj;
 
-    // seal the cap the user provided and give it to them
-    sc->cap_state.original_cap = req->user_cap;
-    sc->cap_state.sealed_cap = cheri_seal(req->user_cap, sc->sealing_key);
+    sc->user_states[current_users].valid = true;
+    sc->user_states[current_users].map = map;
+    sc->user_states[current_users].obj = obj;
+    sc->user_states[current_users].pid = curthread->td_proc->p_pid;
+    sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
+    sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
 
-    req->sealed_cap = sc->cap_state.sealed_cap;
+    // seal user cap
+    sc->user_states[current_users].cap_state.original_cap = req->user_cap;
+    sc->user_states[current_users].cap_state.sealed_cap = cheri_seal(req->user_cap, sc->user_states[current_users].sealing_key);
+
+    req->sealed_cap = sc->user_states[current_users].cap_state.sealed_cap;
+
+    current_users++;
 	CDEV_UNLOCK(sc);
 
 	return (0);
@@ -264,6 +269,9 @@ discover_users(cdev_softc_t* sc, cdev_disc_req_t* req){
         if(sc->user_states[i].valid){
             req->found_receivers[current_pos] = sc->user_states[i].user_id;
             current_pos++;
+        }
+        if(sc->user_states[i].pid == curthread->td_proc->p_pid){
+            req->your_id = i;
         }
     }
 
@@ -311,7 +319,11 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
                 return EINVAL;
             }
 
-            revoke_cap_token(sc);
+            if(header_req->my_id >= MAX_USERS || header_req->my_id < 0){
+                return EINVAL;
+            }
+
+            revoke_cap_token(sc, header_req->my_id);
             CDEV_UNLOCK(sc);
             break;
         case CDEV_DISC:
@@ -363,3 +375,83 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
     return error;
 }
+
+static struct cdev *cdev_cdev;
+
+static int
+create_our_cdev(cdev_softc_t* sc){
+    sc->cdev = make_dev(&cdev_cdevsw, 0, UID_ROOT, GID_WHEEL,
+        0600, "cdev_cheri");
+    cdev_cdev = sc->cdev;
+
+    if(sc->cdev == NULL){
+        return EINVAL;
+    }
+
+    sc->cdev->si_drv1 = sc;
+
+    return 0;
+}
+
+static int
+destroy_our_cdev(cdev_softc_t* sc){
+    if(sc == NULL){
+        return ENXIO;
+    }
+    E1000_LOCK(sc);
+    if(sc->mapped){
+        E1000_UNLOCK(sc);
+        return EBUSY;
+    }
+
+    sc->dying = true;
+    E1000_UNLOCK(sc);
+
+    destroy_dev(sc->cdev);
+    for(size_t i = 0; i < MAX_USERS; i++){
+        if(sc->user_states[i].valid){
+            continue;
+        }
+        
+        if(sc->user_states[i].page_freed){
+            continue;
+        }
+
+        free(sc->user_states[i].page, M_DEVBUF);
+    }
+
+    free(sc, M_DEVBUF);
+
+    cdev_cdev = NULL;
+    return 0;
+}
+
+static int
+handle_load(){
+    cdev_softc_t* sc = (cdev_softc_t*)malloc(sizeof(cdev_softc_t), M_DEVBUF, M_WAITOK | M_ZERO);
+
+    create_our_cdev(sc);
+}
+
+static int
+cdev_modevent(module_t mod, int type, void *arg)
+{
+	int error = 0;
+
+	switch (type) {
+	case MOD_LOAD:
+        handle_load();
+		break;
+	case MOD_UNLOAD: /* FALLTHROUGH */
+	case MOD_SHUTDOWN:
+        destroy_our_cdev(cdev_cdev->si_drv1);
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+
+	return (error);
+}
+
+DEV_MODULE(cdev, cdev_modevent, NULL);

@@ -45,11 +45,14 @@ typedef struct cdev_header_req {
 
 typedef struct cdev_disc_req {
     cap_req_t cap_req;
+    uint32_t my_id;
     int32_t found_receivers[MAX_USERS];
+    uint32_t your_id;
 } cdev_disc_req_t;
 
 typedef struct tx_cdev_req {
     cap_req_t cap_req;
+    uint32_t my_id;
     size_t length;
     uint32_t receiver_id
 } tx_cdev_req_t;
@@ -102,7 +105,9 @@ typedef struct user_state {
     void* __capability sealing_key;
     sealed_cap_state_t cap_state;
     cdev_buffers_t* page;
+    bool page_freed;
     uint32_t user_id;
+    pid_t pid;
 } user_state_t;
 
 typedef struct cdev_soft_c {
@@ -117,5 +122,6 @@ typedef struct cdev_soft_c {
     bool dying;
     bool mapped;
 } cdev_softc_t;
+
 
 #endif
