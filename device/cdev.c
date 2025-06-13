@@ -315,6 +315,17 @@ discover_users(cdev_softc_t* sc, cdev_disc_req_t* req){
 
 static int
 transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
+    char* transmit_buffer = sc->user_states[ req->my_id ]->page->transmit_buffer;
+    char* receive_buffer = sc->user_states[ req->receiver_id ]->page->receive_buffer;
+    uint32_t rx_offest = sc->user_states[ req->receiver_id ]->page->rx_offest;
+    if(req->length < ((PAGE_SIZE / 2) - 2)-rx_offest) {
+        memcopy(receive_buffer[rx_offest], transmit_buffer,  req->length);
+        rx_offest += req->length;
+    } else {
+        memcopy(receive_buffer[rx_offest], transmit_buffer,  ((PAGE_SIZE / 2) - 2)-rx_offest);
+        rx_offest += ((PAGE_SIZE / 2) - 2)-rx_offest;
+    }
+    sc->user_states[ req->receiver_id ]->page->rx_offest = rx_offest;
     return 0;
 }
 
@@ -390,8 +401,8 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
             user_req_tx = (tx_cdev_req_t *)addr;
 
             uprintf("CDEV: check length\n");
-            if(user_req_tx->length > ((PAGE_SIZE / 2) - 2)){
-                uprintf("CDEV: User Wants To Send Too Many Bytes\n");
+            if(user_req_tx->length > ((PAGE_SIZE / 2) - 2) || user_req_tx->length < 0 ){
+                uprintf("CDEV: User Wants To Send Too Many Bytes Or Too Few\n");
                 CDEV_UNLOCK(sc);
                 return EINVAL;
             }
