@@ -112,13 +112,15 @@ static void revoke_cap_token(cdev_softc_t* sc, uint32_t id_to_revoke){
     
     vm_map_entry_t entry;
 
-    VM_MAP_LOCK(map);
-    for (entry = map->header.next; entry != &map->header; entry = entry->next) {
+    vm_map_lock(map);
+
+    VM_MAP_ENTRY_FOREACH(entry, map){
         if (entry->object.vm_object == vm_obj) {
             break;
         }
     }
-    VM_MAP_UNLOCK(map);
+    vm_map_unlock(map);
+
     vm_offset_t start = entry->start;
     vm_offset_t end   = entry->end;
 
@@ -126,7 +128,6 @@ static void revoke_cap_token(cdev_softc_t* sc, uint32_t id_to_revoke){
     if (result != 0) {
         printf("Failed to remove mapping\n");
     }
-
 }
 
 static int
@@ -348,7 +349,7 @@ transmit_to_user(cdev_softc_t* sc, tx_cdev_req_t* req){
         memcpy(&receive_buffer[rx_offest], transmit_buffer, check_val);
         rx_offest += check_val;
     }
-    
+
     sc->user_states[ req->receiver_id ].page->rx_offest = rx_offest;
     return 0;
 }
@@ -467,7 +468,7 @@ create_our_cdev(cdev_softc_t* sc){
 
     // preallocate buffers
     for(size_t i = 0; i < MAX_USERS; i++){
-        sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
+        sc->user_states[i].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
     }
 
     sc->device_attached = true;
