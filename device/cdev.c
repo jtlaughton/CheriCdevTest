@@ -76,7 +76,7 @@ static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
         void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
         if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
             CDEV_UNLOCK(sc);
-            return EPERM;
+            continue;
         }
 
         found = true;
