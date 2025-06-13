@@ -1,5 +1,6 @@
 #include "cdev.h"
 
+#include <stddef.h>
 #include <sys/param.h>
 
 #define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_SPIN)
@@ -118,23 +119,23 @@ cdev_close(struct cdev *dev, int flags, int devtype, struct thread *td)
     if(sc != NULL){
         CDEV_LOCK(sc);
 
-        size_t i;
-        for(i = 0; i < MAX_USERS; i++){
-            if(!sc->user_states[i].valid){
-                continue;
-            }
-            if(sc->user_states[i].pid == curthread->td_proc->p_pid){
-                break;
-            }
-        }
+        // size_t i;
+        // for(i = 0; i < MAX_USERS; i++){
+        //     if(!sc->user_states[i].valid){
+        //         continue;
+        //     }
+        //     if(sc->user_states[i].pid == curthread->td_proc->p_pid){
+        //         break;
+        //     }
+        // }
 
-        if(i == MAX_USERS){
-            CDEV_UNLOCK(sc);
-            return 0;
-        }
+        // if(i == MAX_USERS){
+        //     CDEV_UNLOCK(sc);
+        //     return 0;
+        // }
 
-        free(sc->user_states[i].page, M_DEVBUF);
-        sc->user_states[i].page_freed = true;
+        // free(sc->user_states[i].page, M_DEVBUF);
+        // sc->user_states[i].page_freed = true;
 
         revoke_cap_token(sc, i);
 
@@ -279,8 +280,6 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     sc->user_states[current_users].obj = obj;
     sc->user_states[current_users].pid = curthread->td_proc->p_pid;
     sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
-
-    sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
 
     // seal user cap
     sc->user_states[current_users].cap_state.original_cap = req->user_cap;
@@ -427,6 +426,11 @@ create_our_cdev(cdev_softc_t* sc){
     }
 
     sc->cdev->si_drv1 = sc;
+
+    // preallocate buffers
+    for(size_t i = 0; i < MAX_USERS; i++){
+        sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
+    }
 
     sc->device_attached = true;
 
