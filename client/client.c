@@ -130,6 +130,12 @@ int main(void) {
   printf("Cap after ioctl: %#p\n", cap_request.user_cap);
   printf("Ioctl CDEV_GBY sucessful\n");
 
+  // No way to forge request, but can call goodbye with invalid my_id of another process
+
+  // ADD an use after free call that should fail
+
+  // Try to read the rec buffer (should crash)
+
   close(modmap_fd);
   close(cdev_cheri_fd);
   return 0;
