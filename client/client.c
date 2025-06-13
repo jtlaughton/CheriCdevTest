@@ -66,6 +66,8 @@ int main(void) {
 
   strncpy(cdev_buffer->transmit_buffer, "Hello World!", 12);
 
+  printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
+
   printf("ioctling discover\n");
   printf("Cap before ioctl: %#p\n", cap_request.user_cap);
 
