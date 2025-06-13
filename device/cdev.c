@@ -429,7 +429,7 @@ static int
 handle_load(void){
     cdev_softc_t* sc = (cdev_softc_t*)malloc(sizeof(cdev_softc_t), M_DEVBUF, M_WAITOK | M_ZERO);
 
-    create_our_cdev(sc);
+    return create_our_cdev(sc);
 }
 
 static int
