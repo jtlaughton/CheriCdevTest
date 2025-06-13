@@ -2,9 +2,9 @@
 
 #include <sys/param.h>
 
-#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_DEF)
-#define CDEV_LOCK(sc)      mtx_lock(&(sc)->sc_mtx)
-#define CDEV_UNLOCK(sc)    mtx_unlock(&(sc)->sc_mtx)
+#define CDEV_LOCK_INIT(sc) mtx_init(&(sc)->sc_mtx, "cdev_cheri", "cdev softc lock", MTX_SPIN)
+#define CDEV_LOCK(sc)      mtx_lock_spin(&(sc)->sc_mtx)
+#define CDEV_UNLOCK(sc)    mtx_unlock_spin(&(sc)->sc_mtx)
 #define CDEV_LOCK_DESTROY(sc) mtx_destroy(&(sc)->sc_mtx)
 
 static size_t current_users = 0;
@@ -51,6 +51,39 @@ static int check_cap_token(cdev_softc_t* sc, uint32_t id, void* __capability cap
 
     CDEV_UNLOCK(sc);
     return 0;
+}
+
+static int check_cap_token_loop(cdev_softc_t* sc, void* __capability cap_token){
+    if(check_attach_and_lock(sc)){
+        return EINVAL;
+    }
+
+    bool found = false;
+    for(size_t i = 0; i < current_users; i++){
+        if(!sc->user_states[i].valid){
+           continue;
+        }
+
+        if(sc->user_states[i].cap_state.sealed_cap == NULL){
+            continue;
+        }
+
+        if(cap_token == NULL){
+            continue;
+        }
+
+        uprintf("CDEV: Chekcing equality\n");
+        void* __capability unsealed_token = cheri_unseal(cap_token, sc->user_states[i].sealing_key);
+        if(!cheri_ptr_equal_exact(unsealed_token, sc->user_states[i].cap_state.original_cap)){
+            CDEV_UNLOCK(sc);
+            continue;
+        }
+
+        found = true;
+    }
+
+    CDEV_UNLOCK(sc);
+    return found ? 0 : EPERM;
 }
 
 static int
@@ -202,7 +235,6 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
         (current_users == MAX_USERS) ||
         (offset != NULL && *offset != 0) ||
         size != PAGE_SIZE){
-		CDEV_UNLOCK(sc);
         return EINVAL;
     }
 
@@ -247,6 +279,8 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     sc->user_states[current_users].obj = obj;
     sc->user_states[current_users].pid = curthread->td_proc->p_pid;
     sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
+
+    uprintf("CDEV: sealing key %#p\n", sc->user_states[current_users].sealing_key);
     sc->user_states[current_users].page = (cdev_buffers_t*)malloc(sizeof(cdev_buffers_t), M_DEVBUF, M_WAITOK | M_ZERO);
 
     // seal user cap
@@ -304,9 +338,18 @@ cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     }
 
     uprintf("CDEV: Cap Token Check\n");
-    if(check_cap_token(sc, header_req->my_id, header_req->cap_req.sealed_cap)){
-        return EPERM;
+    if(header_req->my_id >= 0 && header_req->my_id < MAX_USERS){
+        if(check_cap_token(sc, header_req->my_id, header_req->cap_req.sealed_cap)){
+            return EPERM;
+        }
     }
+    else{
+        uprintf("CDEV: Cap token loop\n");
+        if(check_cap_token_loop(sc, header_req->cap_req.sealed_cap)){
+            return EPERM;
+        }
+    }
+    
 
     tx_cdev_req_t* user_req_tx = NULL;
     cdev_disc_req_t* user_req_disc = NULL;
