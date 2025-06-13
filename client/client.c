@@ -49,8 +49,14 @@ int main(void) {
   if (modmap_fd < 0)
     err(1, "open %s", modmap_fd);
 
-  // do the ioctl call and check for failure
-  if (ioctl(modmap_fd, MODMAPIOC_MAP, &req) < 0) {
+  while (true) {
+    int code = ioctl(modmap_fd, MODMAPIOC_MAP, &req);
+    if (code == 0) {
+        break;
+    }
+    if (code == 16) {
+        continue;
+    }
     perror("ioctl MODMAPIOC_MAP");
     close(modmap_fd);
     return 1;
