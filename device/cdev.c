@@ -107,7 +107,7 @@ static void revoke_cap_token(cdev_softc_t* sc, uint32_t id_to_revoke){
     sc->user_states[id_to_revoke].cap_state.original_cap = NULL;
     sc->user_states[id_to_revoke].cap_state.sealed_cap = NULL;
 
-	vm_object_deallocate(sc->user_states[id_to_revoke].obj);
+	//vm_object_deallocate(sc->user_states[id_to_revoke].obj);
     // vm_map_t map = sc->user_states[id_to_revoke].map;
     // vm_object_t vm_obj = sc->user_states[id_to_revoke].obj;
     
@@ -266,17 +266,19 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     //     return EBUSY;
     // }
 
+    CDEV_LOCK(sc);
     // only allow mmap if not in teardown
 	if (sc->dying) {
-		//CDEV_UNLOCK(sc);
+		CDEV_UNLOCK(sc);
 		return (ENXIO);
 	}
 
     // make sure tag provided is valid
     if(!cheri_gettag(req->user_cap)){
-		//CDEV_UNLOCK(sc);
+		CDEV_UNLOCK(sc);
         return EINVAL;
     }
+    CDEV_UNLOCK(sc);
 
     // create vm object for user
 	obj = cdev_pager_allocate(sc, OBJT_DEVICE, &cdev_cdev_pager_ops,
@@ -288,6 +290,8 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 
     obj->flags |= OBJ_HASCAP;
 
+    CDEV_LOCK(sc);
+
 	/*
 	 * If an unload started while we were allocating the VM
 	 * object, dying will now be set and the unloading thread will
@@ -295,7 +299,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
 	 * and fail the mapping request.
 	 */
 	if (sc->dying) {
-	    //CDEV_UNLOCK(sc);
+	    CDEV_UNLOCK(sc);
 		vm_object_deallocate(obj);
 		return (ENXIO);
 	}
@@ -307,6 +311,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     sc->user_states[current_users].obj = obj;
     sc->user_states[current_users].pid = curthread->td_proc->p_pid;
     sc->user_states[current_users].sealing_key = create_sealing_key(current_users);
+    sc->user_states[current_users].page->rx_offest = 0;
 
     // seal user cap
     sc->user_states[current_users].cap_state.original_cap = req->user_cap;
@@ -315,7 +320,7 @@ static int cdev_mmap_single_extra(struct cdev *cdev, vm_ooffset_t *offset, vm_si
     req->sealed_cap = sc->user_states[current_users].cap_state.sealed_cap;
 
     current_users++;
-	//CDEV_UNLOCK(sc);
+	CDEV_UNLOCK(sc);
 
 	return (0);
 }
