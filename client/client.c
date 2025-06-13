@@ -131,7 +131,7 @@ int main(void) {
 
 
   sleep(1);
-  printf("Attempting to send as a different user.");
+  printf("Attempting to send as a different user.\n");
   tx_cdev_req_t tx_cdev_req_bad_id;
   tx_cdev_req_bad_id.cap_req = cap_request;
   tx_cdev_req_bad_id.my_id = 1;
@@ -139,10 +139,10 @@ int main(void) {
   tx_cdev_req_bad_id.length = 13;
   tx_cdev_req_bad_id.receiver_id = my_id;
   if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req_bad_id) < 0) {
-        printf("Driver rejected forged request.");
+        printf("Driver rejected forged request.\n");
   }
 
-  printf("Attempting to send without capability token.");
+  printf("Attempting to send without capability token.\n");
   uint32_t victim = cdev_disc_req.found_receivers[1];
   if (victim == my_id) {
     victim = cdev_disc_req.found_receivers[0];
@@ -156,7 +156,7 @@ int main(void) {
   tx_cdev_req_bad_cap.length = 13;
   tx_cdev_req_bad_cap.receiver_id = my_id;
   if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req_bad_cap) < 0) {
-        printf("Driver rejected invalid request.");
+        printf("Driver rejected invalid request.\n");
   }
 
 
