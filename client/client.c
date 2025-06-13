@@ -149,7 +149,7 @@ int main(void) {
   }
   cap_req_t bad_cap_request;
   tx_cdev_req_t tx_cdev_req_bad_cap;
-  tx_cdev_req_bad_cap.user_cap = malloc(4096); // placeholder
+  bad_cap_request.user_cap = malloc(4096); // placeholder
   tx_cdev_req_bad_cap.cap_req = bad_cap_request;
   tx_cdev_req_bad_cap.my_id = my_id;
   strncpy(cdev_buffer->transmit_buffer, "Hello World!", 12);
