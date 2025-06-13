@@ -68,7 +68,7 @@ int main(void) {
 
   printf("First byte: %02x\n", cdev_buffer->receive_buffer[0]);
 
-  strncpy(cdev_buffer->transmit_buffer, "Hello World!", 12);
+  memcpy_c(cdev_buffer->transmit_buffer, "Hello World!", 12);
 
   printf("RX Buffer Offset: %d\n", cdev_buffer->rx_offest);
 
@@ -109,7 +109,7 @@ int main(void) {
   tx_cdev_req_t tx_cdev_req;
   tx_cdev_req.cap_req = cap_request;
   tx_cdev_req.my_id = my_id;
-  strncpy(cdev_buffer->transmit_buffer, "Hello World!", 13);
+  memcpy_c(cdev_buffer->transmit_buffer, "Hello World!", 12);
   tx_cdev_req.length = 13;
   tx_cdev_req.receiver_id = cdev_disc_req.found_receivers[1];
   if (ioctl(cdev_cheri_fd, CDEV_TX, &tx_cdev_req) < 0) {
